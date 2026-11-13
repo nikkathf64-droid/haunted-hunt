@@ -1,0 +1,220 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080910">
+<title>HAUNTED HUNT</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080910;color:white;font-family:Arial,sans-serif;text-align:center}
+.screen{min-height:100vh;padding:25px 15px;background:radial-gradient(circle at center,#222038,#080910 75%)}
+h1{font-size:38px;letter-spacing:4px;color:#c7a5ff;text-shadow:0 0 20px purple}
+h2{color:#d5c3ff}
+p{color:#bbb}
+button{border:1px solid #9b6cff;background:#211a36;color:white;padding:14px 22px;border-radius:12px;font-size:16px;margin:7px;cursor:pointer}
+button:active{background:#7442bb}
+.hidden{display:none!important}
+.card{background:#171624;border:1px solid #51406c;border-radius:18px;padding:20px;margin:15px auto;max-width:420px}
+.role{font-size:22px;width:42%}
+#arena{height:55vh;min-height:330px;max-height:550px;position:relative;background:radial-gradient(circle,#29283a,#08090e);border:2px solid #7352a0;border-radius:18px;overflow:hidden;margin:12px auto;max-width:600px}
+.player{position:absolute;font-size:36px;transform:translate(-50%,-50%);z-index:2}
+#hero{filter:drop-shadow(0 0 12px #b58aff)}
+#enemy{filter:drop-shadow(0 0 12px red)}
+#status{font-size:19px;color:#d5baff}
+#controls{display:grid;grid-template-columns:repeat(3,65px);justify-content:center;gap:6px;margin:12px}
+#controls button{padding:15px 0;margin:0;font-size:23px}
+#controls button:nth-child(1){grid-column:2}
+#controls button:nth-child(2){grid-column:1;grid-row:2}
+#controls button:nth-child(3){grid-column:2;grid-row:2}
+#controls button:nth-child(4){grid-column:3;grid-row:2}
+small{color:#aaa}
+input{padding:12px;border-radius:9px;border:1px solid #7352a0;background:#111;color:white;width:80%}
+</style>
+</head>
+<body>
+<div class="screen">
+
+<section id="home">
+<h1>HAUNTED HUNT</h1>
+<p>ENTER THE DARKNESS</p>
+<div class="card">
+<h2>Choose Your Game</h2>
+<button onclick="showSolo()">SINGLE PLAYER</button>
+<button onclick="showMulti()">MULTIPLAYER</button>
+</div>
+<div class="card">
+<h2>How to Play</h2>
+<p>👻 Ghost: Escape from the Hunter.</p>
+<p>🔪 Hunter: Catch the Ghost.</p>
+<p>Survive or catch your opponent before time runs out!</p>
+</div>
+<button onclick="soundToggle()" id="soundBtn">🔊 Sound ON</button>
+</section>
+
+<section id="choose" class="hidden">
+<h1>CHOOSE YOUR ROLE</h1>
+<div class="card">
+<button class="role" onclick="startGame('ghost')">👻 GHOST</button>
+<button class="role" onclick="startGame('hunter')">🔪 HUNTER</button>
+<p>Single Player • AI opponent</p>
+</div>
+<button onclick="goHome()">BACK</button>
+</section>
+
+<section id="game" class="hidden">
+<h2 id="roleTitle">GHOST MODE</h2>
+<div id="status">Survive!</div>
+<p>Time: <span id="time">45</span> seconds</p>
+<div id="arena">
+<div id="hero" class="player">👻</div>
+<div id="enemy" class="player">🔪</div>
+</div>
+<div id="controls">
+<button onclick="move(0,-1)">⬆️</button>
+<button onclick="move(-1,0)">⬅️</button>
+<button onclick="move(0,1)">⬇️</button>
+<button onclick="move(1,0)">➡️</button>
+</div>
+<p><small>Use arrow buttons or your keyboard to move.</small></p>
+<button onclick="soundToggle()" id="gameSound">🔊 Sound ON</button>
+<button onclick="restart()">RESTART</button>
+<button onclick="goHome()">HOME</button>
+</section>
+
+<section id="multi" class="hidden">
+<h1>MULTIPLAYER</h1>
+<div class="card">
+<h2>Online Room</h2>
+<p>2–10 Players</p>
+<p>1 Hunter + remaining players as Ghosts</p>
+<input id="roomCode" placeholder="Enter room code">
+<br><br>
+<button onclick="alert('Online multiplayer server setup is required before rooms can connect.')">JOIN ROOM</button>
+<button onclick="alert('Online multiplayer server setup is required before creating a room.')">CREATE ROOM</button>
+</div>
+<p>Online multiplayer, text chat and Open Mic need a connected game server.</p>
+<button onclick="goHome()">BACK</button>
+</section>
+
+<section id="result" class="hidden">
+<h1 id="resultTitle">GAME OVER</h1>
+<h2 id="resultText"></h2>
+<button onclick="restart()">PLAY AGAIN</button>
+<button onclick="goHome()">HOME</button>
+</section>
+
+</div>
+<script>
+let role='ghost',hx=15,hy=50,ex=80,ey=50;
+let time=45,playing=false,timer=null,ai=null;
+let sound=true,audio=null;
+
+const $=id=>document.getElementById(id);
+function hideAll(){
+['home','choose','game','multi','result'].forEach(id=>$(id).classList.add('hidden'));
+}
+function goHome(){stopGame();hideAll();$('home').classList.remove('hidden')}
+function showSolo(){hideAll();$('choose').classList.remove('hidden')}
+function showMulti(){hideAll();$('multi').classList.remove('hidden')}
+
+function soundToggle(){
+sound=!sound;
+$('soundBtn').textContent=sound?'🔊 Sound ON':'🔇 Sound OFF';
+$('gameSound').textContent=sound?'🔊 Sound ON':'🔇 Sound OFF';
+if(sound)beep(440,100);
+}
+function beep(freq,duration){
+if(!sound)return;
+try{
+audio=audio||new(window.AudioContext||window.webkitAudioContext)();
+let osc=audio.createOscillator(),gain=audio.createGain();
+osc.frequency.value=freq;
+gain.gain.value=.035;
+osc.connect(gain);gain.connect(audio.destination);
+osc.start();gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration/1000);
+osc.stop(audio.currentTime+duration/1000);
+}catch(e){}
+}
+function startGame(selected){
+role=selected;
+hx=15;hy=50;ex=80;ey=50;time=45;playing=true;
+hideAll();$('game').classList.remove('hidden');
+$('roleTitle').textContent=role==='ghost'?'👻 GHOST MODE':'🔪 HUNTER MODE';
+$('hero').textContent=role==='ghost'?'👻':'🔪';
+$('enemy').textContent=role==='ghost'?'🔪':'👻';
+$('status').textContent=role==='ghost'?'Escape the Hunter!':'Catch the Ghost!';
+render();
+stopGame();
+playing=true;
+timer=setInterval(()=>{
+if(!playing)return;
+time--;
+$('time').textContent=time;
+if(time<=0){
+finish(role==='ghost');
+}
+},1000);
+ai=setInterval(enemyMove,300);
+beep(300,150);
+}
+function render(){
+$('hero').style.left=hx+'%';
+$('hero').style.top=hy+'%';
+$('enemy').style.left=ex+'%';
+$('enemy').style.top=ey+'%';
+}
+function move(dx,dy){
+if(!playing)return;
+hx=Math.max(5,Math.min(95,hx+dx*4));
+hy=Math.max(5,Math.min(95,hy+dy*5));
+render();checkCatch();
+}
+function enemyMove(){
+if(!playing)return;
+let dx=hx-ex,dy=hy-ey;
+let distance=Math.sqrt(dx*dx+dy*dy)||1;
+if(role==='ghost'){
+ex+=dx/distance*2.2;
+ey+=dy/distance*2.2;
+}else{
+ex-=dx/distance*1.8;
+ey-=dy/distance*1.8;
+}
+ex=Math.max(5,Math.min(95,ex));
+ey=Math.max(5,Math.min(95,ey));
+render();checkCatch();
+}
+function checkCatch(){
+let d=Math.hypot(hx-ex,hy-ey);
+if(d<8){
+if(role==='ghost')finish(false);
+else finish(true);
+}
+}
+function finish(won){
+if(!playing)return;
+stopGame();
+hideAll();$('result').classList.remove('hidden');
+$('resultTitle').textContent=won?'YOU WIN!':'GAME OVER';
+$('resultText').textContent=won?
+(role==='ghost'?'👻 You survived the Hunter!':'🔪 You caught the Ghost!'):
+(role==='ghost'?'The Hunter caught you!':'The Ghost escaped!');
+beep(won?700:150,400);
+}
+function stopGame(){
+playing=false;
+clearInterval(timer);clearInterval(ai);
+timer=null;ai=null;
+}
+function restart(){startGame(role)}
+document.addEventListener('keydown',e=>{
+if(e.key==='ArrowUp'||e.key==='w')move(0,-1);
+if(e.key==='ArrowDown'||e.key==='s')move(0,1);
+if(e.key==='ArrowLeft'||e.key==='a')move(-1,0);
+if(e.key==='ArrowRight'||e.key==='d')move(1,0);
+});
+</script>
+</body>
+</html>
